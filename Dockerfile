@@ -1,30 +1,30 @@
 FROM python:3.12-slim
 
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TZ=Asia/Shanghai
 
-# Create a non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
 
 ENV PYTHONPATH=/app:/app/src
 
-# Install dependencies first (for better caching)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
 COPY . .
 
-# Create log directory and set permissions
-RUN mkdir -p /app/log && \
-    chown -R appuser:appuser /app
+# 镜像内保留配置模板（宿主机 config.yml 不打包进镜像，见 .dockerignore）
+COPY conf/config.yml.template /app/etc/config.yml.template
 
-# Switch to non-root user
-USER appuser
+RUN mkdir -p /app/log /app/conf /app/etc \
+    && chmod +x /app/scripts/docker-entrypoint.sh \
+    && chown -R appuser:appuser /app
 
-# Run the application
+# entrypoint 以 root 修正挂载卷权限后，再降权为 appuser
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
 CMD ["python", "src/job_scheduler.py"]

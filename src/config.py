@@ -14,15 +14,9 @@ class ConfigLoader:
         """初始化配置加载器
         
         Args:
-            config_path: 配置文件路径，如果为None则使用默认路径
+            config_path: 配置文件路径；默认见 _resolve_config_path()
         """
-        if config_path is None:
-            # 默认配置文件路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(current_dir)
-            config_path = os.path.join(project_root, "conf", "config.yml")
-        
-        self.config_path = config_path
+        self.config_path = config_path or self._resolve_config_path()
         self.config = self._load_config()
         
         self.db_conf = self._resolve_db_config()
@@ -30,6 +24,26 @@ class ConfigLoader:
         # 兼容旧模块命名
         self.source_mysql_conf = self.mysql_conf
         
+    @staticmethod
+    def _resolve_config_path() -> str:
+        """解析配置文件路径（支持环境变量与 Docker 内回退模板）。"""
+        for key in ("CONFIG_PATH", "AFCHISCLEAN_CONFIG"):
+            env_path = os.environ.get(key, "").strip()
+            if env_path:
+                return env_path
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        candidates = [
+            os.path.join(project_root, "conf", "config.yml"),
+            "/app/conf/config.yml",
+            "/app/etc/config.yml.template",
+        ]
+        for path in candidates:
+            if os.path.isfile(path) and os.access(path, os.R_OK):
+                return path
+        return candidates[0]
+
     def _load_config(self) -> Dict[str, Any]:
         """加载YAML配置文件
         
@@ -37,10 +51,27 @@ class ConfigLoader:
             Dict[str, Any]: 配置字典
         """
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 return yaml.safe_load(f)
+        except PermissionError as e:
+            logger.error(
+                f"无法读取配置文件（权限不足）: {self.config_path}。 "
+                "请检查宿主机 conf/config.yml 是否为 644 且对容器可读，"
+                "或设置环境变量 CONFIG_PATH 指向可读路径；"
+                "重新构建镜像后 entrypoint 会自动修正挂载目录权限。"
+            )
+            fallback = "/app/etc/config.yml.template"
+            if (
+                self.config_path != fallback
+                and os.path.isfile(fallback)
+                and os.access(fallback, os.R_OK)
+            ):
+                logger.warning(f"回退使用镜像内模板配置: {fallback}")
+                with open(fallback, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f)
+            raise e
         except Exception as e:
-            logger.error(f"加载配置文件失败: {e}")
+            logger.error(f"加载配置文件失败: {self.config_path}: {e}")
             raise
     
     def get_scheduler_config(self) -> Dict[str, Any]:

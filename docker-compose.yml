@@ -5,8 +5,12 @@ services:
         hostname: afchisclean
         restart: unless-stopped
         volumes:
-            - ./conf/:/app/conf
+            # 仅挂载 config.yml；目录权限由镜像 entrypoint 在启动时 chown/chmod
+            - ./conf/config.yml:/app/conf/config.yml
             - ./log/:/app/log
+        # 可选：显式指定配置文件（需对 appuser 可读）
+        # environment:
+        #     CONFIG_PATH: /app/conf/config.yml
         environment:
             DISABLE_IPV6: 'true'
             TZ: 'Asia/Shanghai'

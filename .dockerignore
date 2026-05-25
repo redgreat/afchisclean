@@ -20,5 +20,6 @@ LICENSE
 README.md
 README.Docker.md
 !src
-conf
+# 不把含密码的 config.yml 打进镜像；模板由 Dockerfile 单独 COPY 到 /app/etc/
+conf/config.yml
 script
