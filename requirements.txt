@@ -1,0 +1,4 @@
+loguru
+pymysql
+schedule
+PyYAML

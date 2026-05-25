@@ -1,0 +1,25 @@
+services:
+    afchisclean:
+        image: 'registry.cn-hangzhou.aliyuncs.com/redgreat/afchisclean:latest'
+        container_name: afchisclean
+        hostname: afchisclean
+        restart: unless-stopped
+        volumes:
+            - ./conf/:/app/conf
+            - ./log/:/app/log
+        environment:
+            DISABLE_IPV6: 'true'
+            TZ: 'Asia/Shanghai'
+            LANG: 'zh_CN.UTF-8'
+        deploy:
+            resources:
+                limits:
+                    memory: 1G
+                reservations:
+                    memory: 128M
+        mem_swappiness: 0
+        oom_kill_disable: true
+        ulimits:
+            nofile:
+                soft: 65536
+                hard: 65536

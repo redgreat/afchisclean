@@ -1,0 +1,54 @@
+# 定时任务配置
+scheduler:
+  start_time: "01:00"
+  handler_modules:
+    - "delete_workorder_resource_handler"
+    - "delete_workorder_workflow_handler"
+
+# 全局清理任务开关
+# debug_mode: true  → 仅记录 DELETE/UPDATE SQL 到日志文件，不执行删除、不写审计表
+# debug_mode: false → 正式执行删除并写入 cleanup_delete_audit
+cleanup:
+  debug_mode: false
+  sql_log_dir: "log"
+
+# 数据库连接（单库）
+database:
+  host: "127.0.0.1"
+  port: 3306
+  database: "serviceordercenter"
+  user: "root"
+  password: "password"
+  charset: "utf8"
+
+# 处理器配置（不删 tb_workorderinfo，工单主表请手动统一清理）
+handlers:
+  deleteworkorderresourcehandler:
+    service_provider_code: "1002"
+    batch_size: 100
+    worker_threads: 2
+    batch_sleep_seconds: 30
+    order_by: "b.Id"
+    in_chunk_size: 500
+    cut_off_time: "06:00:00"
+
+  deleteworkorderworkflowhandler:
+    service_provider_code: "1002"
+    batch_size: 50
+    worker_threads: 2
+    batch_sleep_seconds: 30
+    order_by: "b.Id"
+    in_chunk_size: 500
+    cut_off_time: "06:00:00"
+
+# 日志配置
+logging:
+  dir: "log"
+  filename: "batch_jobs.log"
+  level: "INFO"
+  retention: "7 days"
+  rotation: "1 days"
+  colorize: true
+  diagnose: true
+  backtrace: true
+  format: "{time:YYYY-MM-DD at HH:mm:ss} | {level} | {message}"
